@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador Canva-Style Carrossel | Cargo Carioca</title>
+  
+  <!-- Fontes e Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Bibliotecas: html2canvas, qrious e JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f1f5f9;
+      --panel-bg: #ffffff;
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --accent: #0ea5e9;
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+      --whatsapp: #25D366;
+      --border-light: #e2e8f0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    body { background-color: var(--bg-page); color: var(--text-dark); padding: 30px 20px; }
+
+    header { text-align: center; margin-bottom: 30px; }
+    header h1 { font-size: 28px; font-weight: 800; color: var(--primary-dark); letter-spacing: -0.5px; }
+    header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+    .app-container { display: grid; grid-template-columns: 380px 1fr; gap: 30px; max-width: 1700px; margin: 0 auto; }
+    @media (max-width: 1200px) { .app-container { grid-template-columns: 1fr; } }
+
+    /* PAINEL LATERAL DE CONTROLE */
+    .control-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+    
+    .panel-title { font-size: 15px; font-weight: 700; color: var(--primary-dark); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    
+    textarea {
+      width: 100%;
+      height: 300px; 
+      background: #f8fafc;
+      border: 1.5px solid var(--border-light);
+      border-radius: 12px;
+      color: var(--text-dark);
+      padding: 14px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--primary); background: #fff; }
+
+    .btn-action {
+      width: 100%;
+      padding: 16px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: #fff; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+    .btn-success { background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); }
+    .btn-success:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+    /* CONTROLE DE LOTES */
+    .lote-container {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .lote-container label { font-size: 12px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 6px; }
+    .lote-container select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #94a3b8; background: #fff; font-weight: 600; color: var(--text-dark); outline: none; cursor: pointer; }
+
+    /* BARRA DE PROGRESSO */
+    .progress-container { margin-top: 16px; display: none; flex-direction: column; gap: 8px; }
+    .progress-text { font-size: 12px; font-weight: 700; color: var(--primary-dark); display: flex; justify-content: space-between; }
+    .progress-bar-bg { width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 10px; transition: width 0.3s ease; }
+
+    /* TOAST NOTIFICATION CONTAINER */
+    .toast-container { position: fixed; bottom: 25px; right: 25px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
+    .toast { background: var(--text-dark); color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; max-width: 350px; }
+    .toast.success { background: #059669; }
+    .toast.error { background: #dc2626; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ÁREA DAS ARTES GERADAS */
+    .arts-container { display: flex; flex-direction: column; gap: 40px; }
+    .vaga-grupo-bloco { background: #ffffff; border: 1px solid var(--border-light); border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.03); }
+    .grupo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+    .grupo-title { font-size: 18px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 10px; }
+    .grupo-title span { background: #eff6ff; color: var(--primary); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+
+    .carrossel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; justify-items: center; }
+    @media (max-width: 1500px) { .carrossel-grid { grid-template-columns: 1fr; } }
+    .art-wrapper { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; max-width: 400px; }
+
+    /* CANVAS DA ARTE */
+    .vaga-card { width: 400px; height: 500px; background: #ffffff; position: relative; overflow: hidden; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 15px 30px -10px rgba(15, 23, 42, 0.1); border: 1px solid #e2e8f0; }
+    .vaga-card::before { content: ''; position: absolute; top: -100px; right: -100px; width: 280px; height: 280px; background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(37, 99, 235, 0.08) 100%); border-radius: 50%; pointer-events: none; }
+    .vaga-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); }
+    .card-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+
+    /* Cabeçalho */
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #e0f2fe; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .brand-text h2 { font-size: 14px; font-weight: 800; color: var(--text-dark); text-transform: uppercase; }
+    .brand-text span { font-size: 10.5px; color: var(--primary); font-weight: 700; }
+    .vaga-badge { background: #eff6ff; border: 1px solid #bfdbfe; color: var(--primary-dark); padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* CARD 1: CAPA ESPECÍFICA */
+    .card-capa-body { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 16px; flex-grow: 1; padding: 20px 0; }
+    .capa-tag-top { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 800; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
+    .capa-titulo { font-size: 32px; font-weight: 800; text-transform: uppercase; color: var(--text-dark); line-height: 1.1; letter-spacing: -0.5px; }
+    .capa-sub { font-size: 13px; color: var(--text-muted); font-weight: 600; max-width: 280px; }
+    .capa-tags-grid { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 5px; }
+
+    /* CARD 2: CONTEÚDO */
+    .card-body { margin: 10px 0; display: flex; flex-direction: column; gap: 10px; flex-grow: 1; }
+    .vaga-titulo-sm { font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text-dark); }
+    .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1; justify-content: center; }
+    .info-row { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: #334155; line-height: 1.35; }
+    .info-row i { color: var(--primary); font-size: 12px; margin-top: 2px; width: 14px; text-align: center; flex-shrink: 0; }
+    .info-row strong { color: var(--text-dark); font-weight: 700; }
+
+    /* CARD 3: WHATSAPP CTA */
+    .card-whatsapp-body { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; flex-grow: 1; padding: 10px 0; }
+    .wa-icon-big { width: 60px; height: 60px; background: #dcfce7; color: var(--whatsapp); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 8px 20px rgba(37, 211, 102, 0.2); }
+    .wa-title { font-size: 20px; font-weight: 800; color: #14532d; text-transform: uppercase; }
+    .wa-text { font-size: 12px; color: #166534; line-height: 1.4; max-width: 280px; font-weight: 500; }
+    .wa-qr-box { background: #fff; padding: 8px; border-radius: 14px; border: 1.5px solid #bbf7d0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .wa-qr-box img { width: 90px; height: 90px; display: block; }
+
+    /* Botões Diversos */
+    .btn-download { background: #ffffff; color: var(--text-dark); border: 1.5px solid var(--border-light); padding: 10px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+    .btn-download:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+    /* CAIXA DE LEGENDA DO INSTAGRAM */
+    .legenda-box { background: #f8fafc; border: 1.5px dashed #cbd5e1; padding: 16px; border-radius: 12px; margin-top: 24px; position: relative; }
+    .legenda-title { font-size: 14px; font-weight: 800; color: var(--text-dark); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+    .legenda-content { font-size: 13px; color: #475569; white-space: pre-wrap; font-family: inherit; line-height: 1.5; }
+    .btn-copy-legenda { background: #fff; border: 1.5px solid var(--border-light); padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text-dark); transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+    .btn-copy-legenda:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <!-- Container de Notificações Toast -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <header>
+    <h1>Gerador de Carrossel de Vagas (3 Partes)</h1>
+    <p>Gere carrosséis organizados por pastas, divididos em lotes e com legendas prontas para o Instagram.</p>
+  </header>
+
+  <div class="app-container">
+    <!-- Painel de Controle -->
+    <div class="control-panel">
+      <div class="panel-title">
+        <i class="fa-solid fa-code"></i> Cole seu JSON de Vagas:
+      </div>
+      <textarea id="jsonInput" spellcheck="false"></textarea>
+      
+      <button class="btn-action btn-primary" onclick="gerarArtes()">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> 1. Atualizar Carrosséis
+      </button>
+
+      <!-- CAIXA DE SELEÇÃO DE LOTES -->
+      <div class="lote-container" id="loteContainer" style="display: none;">
+        <label for="loteSelect"><i class="fa-solid fa-layer-group"></i> Selecione o Lote para Download (Lim. 5):</label>
+        <select id="loteSelect"></select>
+      </div>
+
+      <button id="btnBaixarZip" class="btn-action btn-success" onclick="baixarLoteZip()" style="display: none;">
+        <i class="fa-solid fa-file-zipper"></i> 2. Baixar Lote (ZIP)
+      </button>
+
+      <!-- BARRA DE PROGRESSO -->
+      <div id="progressContainer" class="progress-container">
+        <div class="progress-text">
+          <span id="progressStatus">Iniciando...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progressFill" class="progress-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área de Exibição das Artes -->
+    <div id="artsContainer" class="arts-container"></div>
+  </div>
+
+  <script>
+    const LOGO_URL = "https://i.postimg.cc/N0G9wXFX/Chat-GPT-Image-7-de-ago-de-2026-18-51-41.png";
+    const LINK_CANAL_WHATSAPP = "https://whatsapp.com/channel/0029VbDd7TmJZg49jK0YFA3R";
+    const LIMITE_POR_LOTE = 5;
+
+    const jsonExemplo = [
+      {
+        "titulo": "Vendedor",
+        "salario": "A combinar",
+        "categoria": "Efetivo",
+        "empresa": "Chefão Bike Elétrica",
+        "local": "Magé, RJ",
+        "horario": "A combinar",
+        "descricao": "Realizar vendas de bicicletas elétricas, atendimento ao cliente, prospecção e fechamento de contratos.",
+        "requisitos": "Experiência comprovada em vendas, boa comunicação e Ensino Médio completo.",
+        "beneficios": "Comissão atrativa e oportunidade de crescimento."
+      }
+    ];
+
+    document.getElementById('jsonInput').value = JSON.stringify(jsonExemplo, null, 2);
+
+    const qrFixo = new QRious({
+      value: LINK_CANAL_WHATSAPP,
+      size: 300,
+      level: 'H'
+    }).toDataURL('image/png');
+
+    const chavesIgnoradas = ['titulo', 'salario', 'regime', 'modalidade', 'candidatura', 'link', 'inscricao', 'como_aplicar', 'email', 'contato'];
+
+    const iconesMap = {
+      local: 'fa-location-dot', localizacao: 'fa-location-dot', horario: 'fa-clock', requisitos: 'fa-circle-check', 
+      beneficios: 'fa-gift', empresa: 'fa-building', empresanome: 'fa-building', categoria: 'fa-briefcase', 
+      atividades: 'fa-list-check', descricao: 'fa-align-left', responsabilidades: 'fa-list-ol'
+    };
+
+    function showToast(mensagem, tipo = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${tipo}`;
+      const icone = tipo === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation';
+      toast.innerHTML = `<i class="fa-solid ${icone}" style="font-size:16px;"></i> <span>${mensagem}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function gerarArtes() {
+      const input = document.getElementById('jsonInput').value;
+      const container = document.getElementById('artsContainer');
+      container.innerHTML = '';
+      
+      document.getElementById('progressContainer').style.display = 'none';
+      document.getElementById('loteContainer').style.display = 'none';
+      document.getElementById('btnBaixarZip').style.display = 'none';
+
+      try {
+        const vagas = JSON.parse(input);
+
+        if (vagas.length === 0) {
+            showToast("Nenhuma vaga encontrada no JSON.", "error");
+            return;
+        }
+
+        vagas.forEach((vaga, index) => {
+          const slugVaga = slugify(vaga.titulo || `vaga-${index + 1}`);
+          const blocoId = `bloco-vaga-${index}`;
+          const card1Id = `card-${index}-1`;
+          const card2Id = `card-${index}-2`;
+          const card3Id = `card-${index}-3`;
+
+          let infoBoxHTML = '';
+          for (const [chave, valor] of Object.entries(vaga)) {
+            const chaveMin = chave.toLowerCase().trim();
+            if (!chavesIgnoradas.includes(chaveMin) && valor) {
+              const chaveFormatada = chave.charAt(0).toUpperCase() + chave.slice(1).replace(/_/g, ' ');
+              const icone = iconesMap[chaveMin] || 'fa-circle-info';
+              infoBoxHTML += `<div class="info-row"><i class="fa-solid ${icone}"></i><div><strong>${chaveFormatada}:</strong> ${valor}</div></div>`;
+            }
+          }
+
+          // GERADOR DA LEGENDA AUTOMÁTICA
+          const hashtagTitulo = vaga.titulo ? vaga.titulo.replace(/\s+/g, '').toLowerCase() : 'vagas';
+          const hashtagLocal = vaga.local ? vaga.local.split(',')[0].replace(/\s+/g, '').toLowerCase() : 'riodejaneiro';
+          
+          let legendaInsta = `🚀 VAGA ABERTA: ${vaga.titulo || 'Oportunidade Imperdível'}!\n\n`;
+          if (vaga.empresa) legendaInsta += `🏢 Empresa: ${vaga.empresa}\n`;
+          if (vaga.local) legendaInsta += `📍 Local: ${vaga.local}\n`;
+          if (vaga.salario) legendaInsta += `💰 Salário: ${vaga.salario}\n`;
+          if (vaga.categoria) legendaInsta += `💼 Contrato: ${vaga.categoria}\n`;
+          legendaInsta += `\n📝 Descrição: ${vaga.descricao || 'Confira todos os detalhes deslizando para o lado no post.'}\n`;
+          if (vaga.requisitos) legendaInsta += `\n📌 Requisitos: ${vaga.requisitos}\n`;
+          
+          legendaInsta += `\n👇 COMO SE CANDIDATAR:\nAcesse o link na nossa Bio ou aponte a câmera do seu celular para o QR Code na última imagem do post para entrar no nosso canal VIP do WhatsApp!\n\n#vagas #emprego #${hashtagLocal} #${hashtagTitulo} #cargocarioca #vagasrj`;
+
+          const blocoDiv = document.createElement('div');
+          blocoDiv.className = 'vaga-grupo-bloco';
+          blocoDiv.id = blocoId;
+          blocoDiv.setAttribute('data-slug', slugVaga);
+
+          blocoDiv.innerHTML = `
+            <div class="grupo-header">
+              <div class="grupo-title">
+                <i class="fa-solid fa-briefcase" style="color:var(--primary);"></i> ${vaga.titulo || 'Vaga Aberta'} 
+                <span>Pasta: /${slugVaga}</span>
+              </div>
+            </div>
+
+            <div class="carrossel-grid">
+              <!-- PARTE 1: CAPA -->
+              <div class="art-wrapper">
+                <div class="vaga-card" id="${card1Id}">
+                  <div class="card-content">
+                    <div class="card-header">
+                      <div class="brand"><img src="${LOGO_URL}" class="brand-logo" crossorigin="anonymous" alt="Logo"><div class="brand-text"><h2>Cargo Carioca</h2><span>@cargocarioca</span></div></div>
+                      <div class="vaga-badge">Nova Vaga</div>
+                    </div>
+                    <div class="card-capa-body">
+                      <div class="capa-tag-top"><i class="fa-solid fa-bolt"></i> Oportunidade Imperdível</div>
+                      <h2 class="capa-titulo">${vaga.titulo || 'VAGA'}</h2>
+                      <p class="capa-sub">${vaga.empresa ? 'Empresa: ' + vaga.empresa : 'Confira os detalhes e candidate-se!'}</p>
+                      <div class="capa-tags-grid">
+                        ${vaga.salario ? `<span class="tag-item highlight" style="background:var(--primary); color:#fff; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:700;"><i class="fa-solid fa-sack-dollar"></i> ${vaga.salario}</span>` : ''}
+                        ${vaga.categoria ? `<span class="tag-item" style="background:#f1f5f9; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:700;"><i class="fa-solid fa-briefcase"></i> ${vaga.categoria}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-download" onclick="baixarUnicaImagem('${card1Id}', '${slugVaga}', '1-capa')"><i class="fa-solid fa-download"></i> Baixar 1-capa</button>
+              </div>
+
+              <!-- PARTE 2: CONTEÚDO -->
+              <div class="art-wrapper">
+                <div class="vaga-card" id="${card2Id}">
+                  <div class="card-content">
+                    <div class="card-header">
+                      <div class="brand"><img src="${LOGO_URL}" class="brand-logo" crossorigin="anonymous" alt="Logo"><div class="brand-text"><h2>Cargo Carioca</h2><span>@cargocarioca</span></div></div>
+                      <div class="vaga-badge">Detalhes</div>
+                    </div>
+                    <div class="card-body">
+                      <h3 class="vaga-titulo-sm">Requisitos & Info</h3>
+                      <div class="info-box">${infoBoxHTML}</div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-download" onclick="baixarUnicaImagem('${card2Id}', '${slugVaga}', '2-conteudo')"><i class="fa-solid fa-download"></i> Baixar 2-conteudo</button>
+              </div>
+
+              <!-- PARTE 3: WHATSAPP -->
+              <div class="art-wrapper">
+                <div class="vaga-card" id="${card3Id}">
+                  <div class="card-content">
+                    <div class="card-header">
+                      <div class="brand"><img src="${LOGO_URL}" class="brand-logo" crossorigin="anonymous" alt="Logo"><div class="brand-text"><h2>Cargo Carioca</h2><span>@cargocarioca</span></div></div>
+                      <div class="vaga-badge">Candidatura</div>
+                    </div>
+                    <div class="card-whatsapp-body">
+                      <div class="wa-icon-big"><i class="fa-brands fa-whatsapp"></i></div>
+                      <h3 class="wa-title">Canal VIP de Vagas</h3>
+                      <p class="wa-text">Aponte a câmera e entre no canal do WhatsApp para se candidatar agora mesmo!</p>
+                      <div class="wa-qr-box"><img src="${qrFixo}" alt="QR Code WhatsApp"></div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-download" onclick="baixarUnicaImagem('${card3Id}', '${slugVaga}', '3-whatsapp')"><i class="fa-solid fa-download"></i> Baixar 3-whatsapp</button>
+              </div>
+            </div>
+
+            <!-- CAIXA DE LEGENDA DO INSTAGRAM -->
+            <div class="legenda-box">
+              <div class="legenda-title">
+                <span><i class="fa-brands fa-instagram" style="color:#e1306c; margin-right:6px;"></i> Legenda Pronta para o Post</span>
+                <button class="btn-copy-legenda" id="btn-copy-${index}" onclick="copiarLegenda('legenda-text-${index}', 'btn-copy-${index}')">
+                  <i class="fa-regular fa-copy"></i> Copiar Legenda
+                </button>
+              </div>
+              <div class="legenda-content" id="legenda-text-${index}">${legendaInsta}</div>
+            </div>
+          `;
+
+          container.appendChild(blocoDiv);
+        });
+
+        atualizarLotesSelect(vagas.length);
+        showToast("Carrosséis gerados com sucesso!", "success");
+
+      } catch (err) {
+        showToast("Erro no formato do JSON. Verifique aspas e vírgulas.", "error");
+        console.error(err);
+      }
+    }
+
+    function atualizarLotesSelect(totalVagas) {
+        const select = document.getElementById('loteSelect');
+        select.innerHTML = '';
+        const totalLotes = Math.ceil(totalVagas / LIMITE_POR_LOTE);
+
+        for (let i = 0; i < totalLotes; i++) {
+            const inicio = (i * LIMITE_POR_LOTE) + 1;
+            const fim = Math.min((i + 1) * LIMITE_POR_LOTE, totalVagas);
+            const option = document.createElement('option');
+            option.value = i;
+            option.text = `Lote ${i + 1} (Vagas ${inicio} até ${fim})`;
+            select.appendChild(option);
+        }
+        document.getElementById('loteContainer').style.display = 'flex';
+        document.getElementById('btnBaixarZip').style.display = 'flex';
+    }
+
+    function slugify(texto) {
+      return (texto || 'vaga').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    }
+
+    function copiarLegenda(idTexto, idBotao) {
+      const texto = document.getElementById(idTexto).innerText;
+      
+      navigator.clipboard.writeText(texto).then(() => {
+        const btn = document.getElementById(idBotao);
+        const textoOriginal = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
+        btn.style.background = '#dcfce7';
+        btn.style.color = '#166534';
+        btn.style.borderColor = '#bbf7d0';
+        showToast("Legenda copiada com sucesso!", "success");
+
+        setTimeout(() => {
+          btn.innerHTML = textoOriginal;
+          btn.style.background = '#fff';
+          btn.style.color = 'var(--text-dark)';
+          btn.style.borderColor = 'var(--border-light)';
+        }, 2000);
+      }).catch(err => {
+        showToast("Erro ao copiar a legenda.", "error");
+        console.error(err);
+      });
+    }
+
+    function baixarUnicaImagem(cardId, pasta, nomeArquivo) {
+      const elemento = document.getElementById(cardId);
+      html2canvas(elemento, { useCORS: true, allowTaint: true, scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `${pasta}-${nomeArquivo}.png`;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+        showToast(`Imagem ${nomeArquivo}.png baixada com sucesso!`, "success");
+      });
+    }
+
+    async function baixarLoteZip() {
+      const blocosNode = document.querySelectorAll('.vaga-grupo-bloco');
+      const blocos = Array.from(blocosNode);
+      if (blocos.length === 0) return;
+
+      const loteIndex = parseInt(document.getElementById('loteSelect').value);
+      if (isNaN(loteIndex)) return;
+
+      const indiceInicio = loteIndex * LIMITE_POR_LOTE;
+      const indiceFim = indiceInicio + LIMITE_POR_LOTE;
+      const blocosDoLote = blocos.slice(indiceInicio, indiceFim);
+
+      const btn = document.getElementById('btnBaixarZip');
+      const selectLote = document.getElementById('loteSelect');
+      const textoOriginal = btn.innerHTML;
+      
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processando Lote ${loteIndex + 1}...`;
+      btn.disabled = true;
+      selectLote.disabled = true;
+      document.querySelector('.btn-primary').disabled = true;
+
+      const progressContainer = document.getElementById('progressContainer');
+      const progressStatus = document.getElementById('progressStatus');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressFill = document.getElementById('progressFill');
+      
+      progressContainer.style.display = 'flex';
+      progressFill.style.width = '0%';
+      
+      const totalCards = blocosDoLote.length * 3;
+      let cardsProcessados = 0;
+
+      const zip = new JSZip();
+
+      try {
+        const promisesBlocos = blocosDoLote.map(async (bloco, i) => {
+          const pastaNome = bloco.getAttribute('data-slug') || `vaga-${indiceInicio + i + 1}`;
+          const pastaZip = zip.folder(pastaNome);
+
+          const cards = bloco.querySelectorAll('.vaga-card');
+          const nomesArquivos = ['1-capa.png', '2-conteudo.png', '3-whatsapp.png'];
+
+          const promisesCards = Array.from(cards).map(async (card, j) => {
+            const canvas = await html2canvas(card, { useCORS: true, allowTaint: true, scale: 2, backgroundColor: "#ffffff" });
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
+            const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+            pastaZip.file(nomesArquivos[j], base64Data, { base64: true });
+
+            cardsProcessados++;
+            const porcentagem = Math.round((cardsProcessados / totalCards) * 100);
+            progressFill.style.width = `${porcentagem}%`;
+            progressPercent.innerText = `${porcentagem}%`;
+            progressStatus.innerText = `Gerando artes... ${cardsProcessados} de ${totalCards}`;
+          });
+
+          await Promise.all(promisesCards);
+        });
+
+        await Promise.all(promisesBlocos);
+
+        progressStatus.innerText = `Compactando Lote ${loteIndex + 1}... Aguarde!`;
+        progressFill.style.background = "linear-gradient(90deg, #10b981, #047857)"; 
+
+        const content = await zip.generateAsync({ type: "blob" });
+        saveAs(content, `vagas-cargo-carioca-lote-${loteIndex + 1}.zip`);
+        
+        showToast(`Lote ${loteIndex + 1} baixado com sucesso!`, "success");
+
+        setTimeout(() => {
+          progressContainer.style.display = 'none';
+          progressFill.style.background = "linear-gradient(90deg, var(--primary), var(--accent))";
+        }, 3500);
+
+      } catch (err) {
+        showToast("Erro ao processar as pastas compactadas.", "error");
+        console.error(err);
+      } finally {
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+        selectLote.disabled = false;
+        document.querySelector('.btn-primary').disabled = false;
+      }
+    }
+
+    window.onload = gerarArtes;
+  </script>
+</body>
+</html>
